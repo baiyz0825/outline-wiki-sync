@@ -17,7 +17,7 @@ import (
 	"github.com/baiyz0825/outline-wiki-sync/service"
 	"github.com/baiyz0825/outline-wiki-sync/utils"
 	"github.com/baiyz0825/outline-wiki-sync/utils/cache"
-	"github.com/baiyz0825/outline-wiki-sync/utils/outlinesdk"
+	"github.com/baiyz0825/outline-wiki-sync/utils/client"
 	"github.com/spf13/cobra"
 )
 
@@ -58,7 +58,7 @@ func init() {
 	// init db
 	dao.Init(filepath.Join(dbPath, "outline.db"))
 	// init outline client
-	outlinesdk.Init(outlineHost)
+	client.Init(outlineHost)
 	// init cache
 	cache.Init()
 }

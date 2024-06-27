@@ -7,13 +7,16 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/baiyz0825/outline-wiki-sdk"
 	"github.com/baiyz0825/outline-wiki-sync/utils"
 	cache2 "github.com/baiyz0825/outline-wiki-sync/utils/cache"
+	"github.com/baiyz0825/outline-wiki-sync/utils/client"
 	"github.com/patrickmn/go-cache"
 )
 
@@ -83,8 +86,18 @@ func (s *SyncMarkDownFile) processDir(path string) (collectionId string) {
 
 	// 检查数据库是否创建了这个Id
 	// 获取最后一层文件夹名称 数据库存储全路径映射
-	// lastPathName := filepath.Base(path)
-
+	lastPathName := filepath.Base(path)
+	request := outline.PostCollectionsCreateJSONRequestBody{
+		Description: utils.PtrString(fmt.Sprintf("%s-%s", "sync->", lastPathName)),
+		Name:        lastPathName,
+		Private:     utils.PtrBool(true),
+	}
+	ok, response := client.OutlineSdk.CreateCollection(s.ctx, request)
+	if !ok {
+		utils.Log.Errorf("创建outline文件夹失败: rawPath:%s request:%v response:%v", path, request, response)
+		return ""
+	}
+	utils.Log.Infof("创建outline文件夹成功: rawPath:%s collectionId:%v", path, response)
 	// TODO 创建数据并更新数据库
 
 	// 更新缓存

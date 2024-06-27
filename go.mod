@@ -3,10 +3,12 @@ module github.com/baiyz0825/outline-wiki-sync
 go 1.19
 
 require (
+	github.com/baiyz0825/outline-wiki-sdk v0.0.0-20240627065233-a0c10ec3a402
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
+	golang.org/x/time v0.5.0
 	gorm.io/driver/sqlite v1.4.3
 	gorm.io/gen v0.3.22
 	gorm.io/gorm v1.25.10
@@ -14,7 +16,6 @@ require (
 )
 
 require (
-	github.com/baiyz0825/outline-wiki-sdk v0.0.0-20240627065233-a0c10ec3a402 // indirect
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
