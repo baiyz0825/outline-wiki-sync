@@ -15,9 +15,9 @@ import (
 
 	"github.com/baiyz0825/outline-wiki-sync/dao"
 	"github.com/baiyz0825/outline-wiki-sync/service"
-	"github.com/baiyz0825/outline-wiki-sync/utils"
 	"github.com/baiyz0825/outline-wiki-sync/utils/cache"
 	"github.com/baiyz0825/outline-wiki-sync/utils/client"
+	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
 	"github.com/spf13/cobra"
 )
 
@@ -68,23 +68,24 @@ func init() {
 
 func check() {
 	if runOnceSync && syncWatch {
-		utils.Log.Errorf("runOnceSync 和 syncWatch 不能同时设置")
+		xlog.Log.Errorf("runOnceSync 和 syncWatch 不能同时设置")
 		os.Exit(1)
 	}
 	// file path check
 	if len(watchFilePath) == 0 {
-		utils.Log.Errorf("watchFilePath 不能为空")
+		xlog.Log.Errorf("watchFilePath 不能为空")
+		os.Exit(1)
 	}
 	if info, err := os.Stat(watchFilePath); err != nil {
 		if os.IsNotExist(err) {
-			utils.Log.Errorf("文件路径不存在: %s", watchFilePath)
+			xlog.Log.Errorf("文件路径不存在: %s", watchFilePath)
 		} else {
-			utils.Log.Errorf("文件路径无效: %s", watchFilePath)
+			xlog.Log.Errorf("文件路径无效: %s", watchFilePath)
 		}
 		os.Exit(1)
 	} else {
 		if !info.IsDir() {
-			utils.Log.Errorf("文件路径不是目录: %s", watchFilePath)
+			xlog.Log.Errorf("文件路径不是目录: %s", watchFilePath)
 			os.Exit(1)
 		}
 	}
@@ -115,7 +116,7 @@ func Execute() {
 }
 
 func cmdMainFunc(ctx context.Context) {
-	utils.Log.Infof("Start run ....")
+	xlog.Log.Infof("Start run ....")
 	fileRootPath := make([]string, 0)
 	fileRootPath = append(fileRootPath, watchFilePath)
 	// func
@@ -149,5 +150,5 @@ func cmdMainFunc(ctx context.Context) {
 		}
 	}()
 
-	utils.Log.Infof("执行结束, exit ... ")
+	xlog.Log.Infof("执行结束, exit ... ")
 }

@@ -8,7 +8,7 @@ package service
 import (
 	"os"
 
-	"github.com/baiyz0825/outline-wiki-sync/utils"
+	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -22,7 +22,7 @@ type BaseFileChangeEventHandler struct {
 	FileChangeEventHandler
 }
 
-var eventHandler map[fsnotify.Op]FileChangeEventHandler
+var eventHandler = make(map[fsnotify.Op]FileChangeEventHandler, 0)
 
 // RunFileEventHandler 获取对应事件的处理器
 func RunFileEventHandler(event fsnotify.Event) {
@@ -32,7 +32,7 @@ func RunFileEventHandler(event fsnotify.Event) {
 	}
 	fi, err := os.Stat(event.Name)
 	if err != nil {
-		utils.Log.Error("获取对应文件变动事件处理器失败: %v", err)
+		xlog.Log.Error("获取对应文件变动事件处理器失败: %v", err)
 		handler.Handle(fi.IsDir(), fi)
 	}
 }

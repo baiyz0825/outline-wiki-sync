@@ -9,13 +9,13 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/baiyz0825/outline-wiki-sync/utils"
+	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
 )
 
 func Init(dbPath string) {
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
-		utils.Log.Errorf("数据库初始化失败: %v", err)
+		xlog.Log.Errorf("数据库初始化失败: %v", err)
 	}
 	// db, err := gorm.Open(mysql.New(mysql.Config{
 	// 	DSN:                       "gorm:gorm@tcp(127.0.0.1:3306)/gorm?charset=utf8&parseTime=True&loc=Local", // DSN data source name

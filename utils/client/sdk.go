@@ -12,8 +12,8 @@ import (
 	"os"
 
 	"github.com/baiyz0825/outline-wiki-sdk"
-	"github.com/baiyz0825/outline-wiki-sync/utils"
 	"github.com/baiyz0825/outline-wiki-sync/utils/ratelimit"
+	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
 )
 
 type OutLineSdk struct {
@@ -32,7 +32,7 @@ func Init(host, sdkAuth string) {
 		}),
 	)
 	if err != nil {
-		utils.Log.Errorf("初始化outLine客户端失败: %s", err)
+		xlog.Log.Errorf("初始化outLine客户端失败: %s", err)
 		os.Exit(1)
 	}
 	OutlineSdk = &OutLineSdk{
@@ -47,7 +47,7 @@ func (s *OutLineSdk) CreateCollection(ctx context.Context, request outline.PostC
 	f := func(responseP *outline.PostCollectionsCreateResponse) bool {
 		response, err := s.OutlineClientWithResponses.PostCollectionsCreateWithResponse(context.Background(), request)
 		if err != nil || response.StatusCode() != http.StatusOK || response.JSON200 == nil {
-			utils.Log.Errorf("创建outline文件夹失: %v", response)
+			xlog.Log.Errorf("创建outline文件夹失: %v", response)
 			return false
 		}
 		return true
@@ -67,7 +67,7 @@ func (s *OutLineSdk) CreateDocument(ctx context.Context, request outline.PostDoc
 	f := func(responseP *outline.PostDocumentsCreateResponse) bool {
 		response, err := s.OutlineClientWithResponses.PostDocumentsCreateWithResponse(context.Background(), request)
 		if err != nil || response.StatusCode() != http.StatusOK || response.JSON200 == nil {
-			utils.Log.Errorf("创建outline文件失败: %v", response)
+			xlog.Log.Errorf("创建outline文件失败: %v", response)
 			return false
 		}
 		return true

@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/baiyz0825/outline-wiki-sync/utils"
+	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
 )
 
 var limiter *rate.Limiter
@@ -24,7 +24,7 @@ func Init() {
 func LimitRun[T any](ctx context.Context, response *T, fuc func(*T) bool) bool {
 	err := limiter.Wait(ctx)
 	if err != nil {
-		utils.Log.Errorf("限流控制失败: %v", err)
+		xlog.Log.Errorf("限流控制失败: %v", err)
 		return false
 	}
 	return fuc(response)

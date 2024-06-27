@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/baiyz0825/outline-wiki-sync/utils"
+	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -23,7 +23,7 @@ type FileWatch struct {
 func NewFileWatch(ctx context.Context, rootPath string) *FileWatch {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		utils.Log.Error("初始化文件监听失败: ", err)
+		xlog.Log.Error("初始化文件监听失败: ", err)
 	}
 	w := &FileWatch{
 		WatchRootPath: rootPath,
@@ -47,7 +47,7 @@ func (w *FileWatch) WatchDir() {
 			if err != nil {
 				return err
 			}
-			utils.Log.Infof("监控 : %s", path)
+			xlog.Log.Infof("监控 : %s", path)
 		}
 		return nil
 	})
@@ -61,34 +61,34 @@ func (w *FileWatch) watchEvent() {
 		select {
 		case <-w.ctx.Done():
 			{
-				utils.Log.Infof("监测到退出信号,文件监听退出")
+				xlog.Log.Infof("监测到退出信号,文件监听退出")
 				return
 			}
 		case ev := <-w.watch.Events:
 			{
 				if ev.Op&fsnotify.Create == fsnotify.Create {
-					utils.Log.Infof("创建文件 : %s", ev.Name)
+					xlog.Log.Infof("创建文件 : %s", ev.Name)
 					file, err := os.Stat(ev.Name)
 					if err == nil && file.IsDir() {
 						_ = w.watch.Add(ev.Name)
-						utils.Log.Infof("添加监控 : %s", ev.Name)
+						xlog.Log.Infof("添加监控 : %s", ev.Name)
 					}
 					RunFileEventHandler(ev)
 
 				}
 
 				if ev.Op&fsnotify.Write == fsnotify.Write {
-					utils.Log.Infof("文件被写入 : %s", ev.Name)
+					xlog.Log.Infof("文件被写入 : %s", ev.Name)
 					RunFileEventHandler(ev)
 				}
 
 				if ev.Op&fsnotify.Remove == fsnotify.Remove {
-					utils.Log.Infof("删除文件 : %s", ev.Name)
+					xlog.Log.Infof("删除文件 : %s", ev.Name)
 					// 如果删除文件是目录，则移除监控
 					fi, err := os.Stat(ev.Name)
 					if err == nil && fi.IsDir() {
 						_ = w.watch.Remove(ev.Name)
-						utils.Log.Infof("删除监控 : %s", ev.Name)
+						xlog.Log.Infof("删除监控 : %s", ev.Name)
 					}
 
 					RunFileEventHandler(ev)
@@ -97,20 +97,20 @@ func (w *FileWatch) watchEvent() {
 				if ev.Op&fsnotify.Rename == fsnotify.Rename {
 					// 如果重命名文件是目录，则移除监控 ,注意这里无法使用os.Stat来判断是否是目录了
 					// 因为重命名后，go已经无法找到原文件来获取信息了,所以简单粗爆直接remove
-					utils.Log.Infof("重命名文件 : %s", ev.Name)
+					xlog.Log.Infof("重命名文件 : %s", ev.Name)
 					_ = w.watch.Remove(ev.Name)
 
 					RunFileEventHandler(ev)
 				}
 				if ev.Op&fsnotify.Chmod == fsnotify.Chmod {
-					utils.Log.Infof("修改权限 : %s", ev.Name)
+					xlog.Log.Infof("修改权限 : %s", ev.Name)
 
 					RunFileEventHandler(ev)
 				}
 			}
 		case err := <-w.watch.Errors:
 			{
-				utils.Log.Infof("文件监听出现问题: %v", err)
+				xlog.Log.Infof("文件监听出现问题: %v", err)
 				return
 			}
 		}

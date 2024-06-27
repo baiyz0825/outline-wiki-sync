@@ -20,6 +20,7 @@ import (
 	"github.com/baiyz0825/outline-wiki-sync/utils"
 	cache2 "github.com/baiyz0825/outline-wiki-sync/utils/cache"
 	"github.com/baiyz0825/outline-wiki-sync/utils/client"
+	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
 	"github.com/google/uuid"
 	"github.com/patrickmn/go-cache"
 )
@@ -56,10 +57,10 @@ func (s *SyncMarkDownFile) SyncMarkdownFile() {
 		}
 		ok, response := client.OutlineSdk.CreateCollection(s.ctx, request)
 		if !ok {
-			utils.Log.Errorf("创建outline文件夹失败: rawPath:%s request:%v response:%v", fileRootPath, request, response)
+			xlog.Log.Errorf("创建outline文件夹失败: rawPath:%s request:%v response:%v", fileRootPath, request, response)
 			continue
 		}
-		utils.Log.Infof("创建outline文件夹成功: rawPath:%s collectionId:%v", fileRootPath, response)
+		xlog.Log.Infof("创建outline文件夹成功: rawPath:%s collectionId:%v", fileRootPath, response)
 		mapping := &model.OutlineWikiCollectionMapping{
 			CollectionId:   response.JSON200.Data.Id.String(),
 			CollectionPath: fileRootPath,
@@ -70,10 +71,10 @@ func (s *SyncMarkDownFile) SyncMarkdownFile() {
 		}
 		err := dao.OutlineWikiCollectionMapping.WithContext(s.ctx).Create(mapping)
 		if err != nil {
-			utils.Log.Errorf("创建outline文件夹 并保存db 失败: name:%s  data:%v", base, mapping)
+			xlog.Log.Errorf("创建outline文件夹 并保存db 失败: name:%s  data:%v", base, mapping)
 			continue
 		}
-		utils.Log.Errorf("创建outline集合 成功: name:%s  collectionId:%v", base, mapping.CollectionId)
+		xlog.Log.Errorf("创建outline集合 成功: name:%s  collectionId:%v", base, mapping.CollectionId)
 
 		// process file dir
 		go func(rootPath, collectionId string, wg *sync.WaitGroup) {
@@ -83,7 +84,7 @@ func (s *SyncMarkDownFile) SyncMarkdownFile() {
 			fileSystem := os.DirFS(rootPath)
 			err := fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
 				if err != nil {
-					utils.Log.Error("遍历文件路径失败: %v", err)
+					xlog.Log.Error("遍历文件路径失败: %v", err)
 					return nil
 				}
 
@@ -102,7 +103,7 @@ func (s *SyncMarkDownFile) SyncMarkdownFile() {
 				}
 				return nil
 			})
-			utils.Log.Errorf("遍历文件夹出错：%v", err)
+			xlog.Log.Errorf("遍历文件夹出错：%v", err)
 		}(fileRootPath, mapping.CollectionId, &rootWg)
 
 		// wait
@@ -131,7 +132,7 @@ func (s *SyncMarkDownFile) processDir(path, parentId, collectionId string) strin
 	wikiCollectionMapping, err := dao.OutlineWikiCollectionMapping.WithContext(s.ctx).
 		Where(dao.OutlineWikiCollectionMapping.CollectionPath.Eq(path)).First()
 	if err != nil {
-		utils.Log.Errorf("查询outline一般子文件夹配置: rawPath:%s", path)
+		xlog.Log.Errorf("查询outline一般子文件夹配置: rawPath:%s", path)
 		return ""
 	}
 	if wikiCollectionMapping != nil {
@@ -151,10 +152,10 @@ func (s *SyncMarkDownFile) processDir(path, parentId, collectionId string) strin
 	}
 	ok, response := client.OutlineSdk.CreateDocument(s.ctx, request)
 	if !ok {
-		utils.Log.Errorf("创建outline一般子文件夹失败: rawPath:%s request:%v response:%v", path, request, response)
+		xlog.Log.Errorf("创建outline一般子文件夹失败: rawPath:%s request:%v response:%v", path, request, response)
 		return ""
 	}
-	utils.Log.Infof("创建outline一般子文件夹成功: rawPath:%s collectionId:%v", path, response.JSON200.Data.Id)
+	xlog.Log.Infof("创建outline一般子文件夹成功: rawPath:%s collectionId:%v", path, response.JSON200.Data.Id)
 	// 4. save data
 	mapping := &model.OutlineWikiCollectionMapping{
 		CollectionId:   collectionId,
@@ -168,7 +169,7 @@ func (s *SyncMarkDownFile) processDir(path, parentId, collectionId string) strin
 	}
 	err = dao.OutlineWikiCollectionMapping.WithContext(s.ctx).Create(mapping)
 	if err != nil {
-		utils.Log.Errorf("创建outline一般子文件夹 并保存db 失败: name:%s  data:%v", lastPathName, mapping)
+		xlog.Log.Errorf("创建outline一般子文件夹 并保存db 失败: name:%s  data:%v", lastPathName, mapping)
 		return ""
 	}
 	return mapping.CurrentId
@@ -180,25 +181,25 @@ func (s *SyncMarkDownFile) processFile(path, parentId, collectionId string) {
 	// 文件详情
 	fileInfo, err := os.Open(path)
 	if err != nil {
-		utils.Log.Errorf("读取文件信息失败: filePath: %s error: %v", path, err)
+		xlog.Log.Errorf("读取文件信息失败: filePath: %s error: %v", path, err)
 		return
 	}
 	stat, err := fileInfo.Stat()
 	if err != nil {
-		utils.Log.Errorf("读取文件状态失败: filePath: %s error: %v", path, err)
+		xlog.Log.Errorf("读取文件状态失败: filePath: %s error: %v", path, err)
 		return
 	}
 	fileSize := float64(stat.Size()) / 1024
 
 	if filepath.Ext(stat.Name()) != ".md" {
-		utils.Log.Infof("当前文件不是md文件,跳过处理: %s", stat.Name())
+		xlog.Log.Infof("当前文件不是md文件,跳过处理: %s", stat.Name())
 		return
 	}
 
 	// 打开文件
 	fileContent, err := os.ReadFile(path)
 	if err != nil {
-		utils.Log.Errorf("读取文件失败: filePath: %s error: %v", path, err)
+		xlog.Log.Errorf("读取文件失败: filePath: %s error: %v", path, err)
 		return
 	}
 
@@ -213,7 +214,7 @@ func (s *SyncMarkDownFile) processFile(path, parentId, collectionId string) {
 	}
 	err = dao.FileSyncRecord.WithContext(s.ctx).Create(mapping)
 	if err != nil {
-		utils.Log.Errorf("一般子文件夹 初始化保存db 失败: name:%s  data:%v", stat.Name(), mapping)
+		xlog.Log.Errorf("一般子文件夹 初始化保存db 失败: name:%s  data:%v", stat.Name(), mapping)
 		return
 	}
 
@@ -229,17 +230,17 @@ func (s *SyncMarkDownFile) processFile(path, parentId, collectionId string) {
 	}
 	ok, response := client.OutlineSdk.CreateDocument(s.ctx, request)
 	if !ok {
-		utils.Log.Errorf("创建outline文档失败: rawPath:%s request:%v response:%v", path, request, response)
+		xlog.Log.Errorf("创建outline文档失败: rawPath:%s request:%v response:%v", path, request, response)
 		return
 	}
-	utils.Log.Infof("创建outline文档成功: rawPath:%s wikiId:%v", path, response.JSON200.Data.Id)
+	xlog.Log.Infof("创建outline文档成功: rawPath:%s wikiId:%v", path, response.JSON200.Data.Id)
 	updateResult, err := dao.FileSyncRecord.WithContext(s.ctx).
 		Where(dao.FileSyncRecord.FilePath.Eq(path)).
 		Update(dao.FileSyncRecord.OutlineWikiId, response.JSON200.Data.Id.String())
 	if err != nil {
-		utils.Log.Errorf("创建outline一般子文件夹 更新db 失败: name:%s  data:%v", stat.Name(), mapping)
+		xlog.Log.Errorf("创建outline一般子文件夹 更新db 失败: name:%s  data:%v", stat.Name(), mapping)
 		return
 	}
-	utils.Log.Infof("更新outline文档数据库成功: rawPath:%s updateResult:%v", path, updateResult.RowsAffected)
+	xlog.Log.Infof("更新outline文档数据库成功: rawPath:%s updateResult:%v", path, updateResult.RowsAffected)
 
 }

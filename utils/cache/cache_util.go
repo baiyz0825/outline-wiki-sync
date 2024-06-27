@@ -8,7 +8,7 @@ package cache
 import (
 	"time"
 
-	"github.com/baiyz0825/outline-wiki-sync/utils"
+	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
 	gocache "github.com/patrickmn/go-cache"
 )
 
@@ -19,9 +19,9 @@ type Cache struct {
 var XCache *Cache
 
 func Init() {
-	utils.Log.Info("初始化缓存中....")
+	xlog.Log.Info("初始化缓存中....")
 	XCache = &Cache{cacheDb: gocache.New(time.Hour, 2*time.Hour)}
-	utils.Log.Info("初始化缓存成功，默认2h清理全局缓存")
+	xlog.Log.Info("初始化缓存成功，默认2h清理全局缓存")
 }
 
 // GetDataFromCache 从缓存中获取值
@@ -37,7 +37,7 @@ func (c *Cache) GetDataFromCache(key string) interface{} {
 func (c *Cache) SetDataToCache(key string, data interface{}, duration time.Duration) bool {
 	err := c.cacheDb.Add(key, data, duration)
 	if err != nil {
-		utils.Log.Error("SetCache failure: %v", err)
+		xlog.Log.Error("SetCache failure: %v", err)
 		return false
 	}
 	return true
