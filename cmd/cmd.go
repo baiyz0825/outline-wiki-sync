@@ -32,6 +32,7 @@ var rootCmd = &cobra.Command{
 
 var (
 	watchFilePath string
+	sdkAuth       string
 	outlineHost   string
 	dbPath        string
 	syncWatch     bool
@@ -42,6 +43,7 @@ var (
 func init() {
 	// init cmd params
 	rootCmd.PersistentFlags().StringVar(&watchFilePath, "watchFilePath", "", "outline服务host")
+	rootCmd.PersistentFlags().StringVar(&watchFilePath, "sdkAuth", "", "outline服务 api key")
 	rootCmd.PersistentFlags().StringVar(&watchFilePath, "outlineHost", "", "要监视的文件路径")
 	defaultWorkDir, _ := os.Getwd()
 	rootCmd.PersistentFlags().StringVar(&dbPath, "dbPath", filepath.Join(defaultWorkDir, "outline.db"),
@@ -52,13 +54,14 @@ func init() {
 		"实时监听 同步时间 corn 默认: 每10min一次 */10 * * * *")
 	_ = rootCmd.MarkPersistentFlagRequired("watchFilePath")
 	_ = rootCmd.MarkPersistentFlagRequired("outlineHost")
+	_ = rootCmd.MarkPersistentFlagRequired("sdkAuth")
 
 	// check
 	check()
 	// init db
 	dao.Init(filepath.Join(dbPath, "outline.db"))
 	// init outline client
-	client.Init(outlineHost)
+	client.Init(outlineHost, sdkAuth)
 	// init cache
 	cache.Init()
 }
@@ -117,10 +120,10 @@ func cmdMainFunc(ctx context.Context) {
 	fileRootPath = append(fileRootPath, watchFilePath)
 	// func
 	var mainWg sync.WaitGroup
-	mainWg.Add(2)
 
 	// run sync markDown
 	go func() {
+		mainWg.Add(1)
 		defer mainWg.Done()
 		if runOnceSync {
 			service.NewSyncMarkDownFile(ctx, fileRootPath).SyncMarkdownFile()
@@ -129,6 +132,7 @@ func cmdMainFunc(ctx context.Context) {
 
 	// run sync watchDir
 	go func() {
+		mainWg.Add(1)
 		defer mainWg.Done()
 		if syncWatch {
 			var wg sync.WaitGroup
