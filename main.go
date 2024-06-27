@@ -5,6 +5,11 @@
 
 package main
 
+import (
+	"github.com/baiyz0825/outline-wiki-sync/cmd"
+)
+
 func main() {
 	// 程序入口
+	cmd.Execute()
 }
