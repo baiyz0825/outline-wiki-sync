@@ -11,5 +11,5 @@ import (
 
 func main() {
 	// 程序入口
-	cmd.Execute()
+	cmd.RunRootCmd()
 }

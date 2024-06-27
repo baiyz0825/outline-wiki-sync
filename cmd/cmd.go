@@ -26,7 +26,7 @@ var rootCmd = &cobra.Command{
 	Short: "同步本地markdown文档到outline",
 	Long:  `同步本地markdown文档到outline,并且支持实时监听文件状态进行自动更新同,输出更新信息到db`,
 	Run: func(cmd *cobra.Command, args []string) {
-
+		Execute(args)
 	},
 }
 
@@ -55,15 +55,6 @@ func init() {
 	_ = rootCmd.MarkPersistentFlagRequired("watchFilePath")
 	_ = rootCmd.MarkPersistentFlagRequired("outlineHost")
 	_ = rootCmd.MarkPersistentFlagRequired("sdkAuth")
-
-	// check
-	check()
-	// init db
-	dao.Init(filepath.Join(dbPath, "outline.db"))
-	// init outline client
-	client.Init(outlineHost, sdkAuth)
-	// init cache
-	cache.Init()
 }
 
 func check() {
@@ -91,7 +82,20 @@ func check() {
 	}
 }
 
-func Execute() {
+func RunRootCmd() {
+	_ = rootCmd.Execute()
+}
+
+func Execute(args []string) {
+
+	// check
+	check()
+	// init db
+	dao.Init(filepath.Join(dbPath, "outline.db"))
+	// init outline client
+	client.Init(outlineHost, sdkAuth)
+	// init cache
+	cache.Init()
 
 	// 创建一个上下文对象
 	ctx, cancel := context.WithCancel(context.Background())
