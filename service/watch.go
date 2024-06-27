@@ -6,6 +6,7 @@
 package service
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
@@ -16,9 +17,10 @@ import (
 type FileWatch struct {
 	WatchRootPath string
 	watch         *fsnotify.Watcher
+	ctx           context.Context
 }
 
-func NewFileWatch(rootPath string) *FileWatch {
+func NewFileWatch(ctx context.Context, rootPath string) *FileWatch {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		utils.Log.Error("初始化文件监听失败: ", err)
@@ -26,6 +28,7 @@ func NewFileWatch(rootPath string) *FileWatch {
 	w := &FileWatch{
 		WatchRootPath: rootPath,
 		watch:         watcher,
+		ctx:           ctx,
 	}
 	return w
 }
@@ -56,6 +59,11 @@ func (w *FileWatch) WatchDir() {
 func (w *FileWatch) watchEvent() {
 	for {
 		select {
+		case <-w.ctx.Done():
+			{
+				utils.Log.Infof("监测到退出信号,文件监听退出")
+				return
+			}
 		case ev := <-w.watch.Events:
 			{
 				if ev.Op&fsnotify.Create == fsnotify.Create {

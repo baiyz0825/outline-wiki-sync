@@ -6,29 +6,33 @@
 package service
 
 import (
+	"context"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/baiyz0825/outline-wiki-sync/utils"
+	cache2 "github.com/baiyz0825/outline-wiki-sync/utils/cache"
 	"github.com/patrickmn/go-cache"
 )
 
 type SyncMarkDownFile struct {
-	FileRootPath []string
-	filePathLock *sync.Map
+	FileRootPath  []string
+	filePathLocks *sync.Map
+	ctx           context.Context
 }
 
-func NewSyncMarkDownFile(fileRootPaths []string) *SyncMarkDownFile {
+func NewSyncMarkDownFile(ctx context.Context, fileRootPaths []string) *SyncMarkDownFile {
 	return &SyncMarkDownFile{
-		FileRootPath: fileRootPaths,
-		filePathLock: &sync.Map{},
+		FileRootPath:  fileRootPaths,
+		filePathLocks: &sync.Map{},
+		ctx:           ctx,
 	}
 }
 
 func (s *SyncMarkDownFile) getMutexForPath(path string) *sync.Mutex {
-	mutex, _ := s.filePathLock.LoadOrStore(path, &sync.Mutex{})
+	mutex, _ := s.filePathLocks.LoadOrStore(path, &sync.Mutex{})
 	return mutex.(*sync.Mutex)
 }
 
@@ -52,7 +56,15 @@ func (s *SyncMarkDownFile) processOneFileOrPath(path string, d fs.DirEntry, err 
 	}
 
 	if !d.IsDir() {
-		go s.processFile(path, d)
+		select {
+		case <-s.ctx.Done():
+			{
+				utils.Log.Infof("监测到退出信号, 处理单个文件或文件夹处理业务退出")
+				return nil
+			}
+		default:
+			go s.processFile(path, d)
+		}
 	}
 	return nil
 }
@@ -60,8 +72,8 @@ func (s *SyncMarkDownFile) processOneFileOrPath(path string, d fs.DirEntry, err 
 // processDir 处理文件夹 这里对文件夹上锁，有一个处理中或者处理成功就不处理了
 func (s *SyncMarkDownFile) processDir(path string) (collectionId string) {
 	// 检查缓存
-	cacheKey := utils.XCache.GenCollectionCacheKey(path)
-	fromCache := utils.XCache.GetDataFromCache(cacheKey)
+	cacheKey := cache2.XCache.GenCollectionCacheKey(path)
+	fromCache := cache2.XCache.GetDataFromCache(cacheKey)
 	if fromCache != nil {
 		return fromCache.(string)
 	}
@@ -76,7 +88,7 @@ func (s *SyncMarkDownFile) processDir(path string) (collectionId string) {
 	// TODO 创建数据并更新数据库
 
 	// 更新缓存
-	utils.XCache.SetDataToCache(cacheKey, collectionId, cache.NoExpiration)
+	cache2.XCache.SetDataToCache(cacheKey, collectionId, cache.NoExpiration)
 	return ""
 }
 

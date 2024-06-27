@@ -6,11 +6,18 @@
 package cmd
 
 import (
+	"context"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sync"
+	"syscall"
 
+	"github.com/baiyz0825/outline-wiki-sync/dao"
+	"github.com/baiyz0825/outline-wiki-sync/service"
 	"github.com/baiyz0825/outline-wiki-sync/utils"
+	"github.com/baiyz0825/outline-wiki-sync/utils/cache"
+	"github.com/baiyz0825/outline-wiki-sync/utils/outlinesdk"
 	"github.com/spf13/cobra"
 )
 
@@ -25,44 +32,118 @@ var rootCmd = &cobra.Command{
 
 var (
 	watchFilePath string
+	outlineHost   string
 	dbPath        string
 	syncWatch     bool
+	runOnceSync   bool
 	syncCorn      string
 )
 
 func init() {
-	// 初始化命令行参数
-	rootCmd.PersistentFlags().StringVar(&watchFilePath, "watchFilePath", "", "要监视的文件路径")
+	// init cmd params
+	rootCmd.PersistentFlags().StringVar(&watchFilePath, "watchFilePath", "", "outline服务host")
+	rootCmd.PersistentFlags().StringVar(&watchFilePath, "outlineHost", "", "要监视的文件路径")
 	defaultWorkDir, _ := os.Getwd()
 	rootCmd.PersistentFlags().StringVar(&dbPath, "dbPath", filepath.Join(defaultWorkDir, "outline.db"),
 		"要监视的文件完整路径: 默认工作目录下的 outline.db")
 	rootCmd.PersistentFlags().BoolVar(&syncWatch, "syncWatch", false, "是否需要进行实时监听")
+	rootCmd.PersistentFlags().BoolVar(&syncWatch, "runOnceSync", true, "只同步一次")
 	rootCmd.PersistentFlags().StringVar(&syncCorn, "syncCorn", "",
 		"实时监听 同步时间 corn 默认: 每10min一次 */10 * * * *")
 	_ = rootCmd.MarkPersistentFlagRequired("watchFilePath")
+	_ = rootCmd.MarkPersistentFlagRequired("outlineHost")
 
+	// check
+	check()
 	// init db
+	dao.Init(filepath.Join(dbPath, "outline.db"))
+	// init outline client
+	outlinesdk.Init(outlineHost)
+	// init cache
+	cache.Init()
+}
 
+func check() {
+	if runOnceSync && syncWatch {
+		utils.Log.Errorf("runOnceSync 和 syncWatch 不能同时设置")
+		os.Exit(1)
+	}
+	// file path check
+	if len(watchFilePath) == 0 {
+		utils.Log.Errorf("watchFilePath 不能为空")
+	}
+	if info, err := os.Stat(watchFilePath); err != nil {
+		if os.IsNotExist(err) {
+			utils.Log.Errorf("文件路径不存在: %s", watchFilePath)
+		} else {
+			utils.Log.Errorf("文件路径无效: %s", watchFilePath)
+		}
+		os.Exit(1)
+	} else {
+		if !info.IsDir() {
+			utils.Log.Errorf("文件路径不是目录: %s", watchFilePath)
+			os.Exit(1)
+		}
+	}
 }
 
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		utils.Log.Infof("Start run ....")
-		// func
+
+	// 创建一个上下文对象
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// 捕获中断信号
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+
+	// 启动goroutine监听信号
+	go func() {
+		// 等待中断信号
+		<-signalChan
+
+		// 收到中断信号后，调用cancel函数通知goroutine停止运行
+		cancel()
+	}()
+
+	cmdMainFunc(ctx)
+
+	// 等待任务完成或收到中断信号
+	<-ctx.Done()
+}
+
+func cmdMainFunc(ctx context.Context) {
+	utils.Log.Infof("Start run ....")
+	fileRootPath := make([]string, 0)
+	fileRootPath = append(fileRootPath, watchFilePath)
+	// func
+	var mainWg sync.WaitGroup
+	mainWg.Add(2)
+
+	// run sync markDown
+	go func() {
+		defer mainWg.Done()
+		if runOnceSync {
+			service.NewSyncMarkDownFile(ctx, fileRootPath).SyncMarkdownFile()
+		}
+	}()
+
+	// run sync watchDir
+	go func() {
+		defer mainWg.Done()
 		if syncWatch {
 			var wg sync.WaitGroup
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				// run service
-			}()
-
+			for _, pathItem := range fileRootPath {
+				wg.Add(1)
+				go func(path string) {
+					defer wg.Done()
+					// run service
+					service.NewFileWatch(ctx, path).WatchDir()
+				}(pathItem)
+			}
 			// 实时监听
 			wg.Wait()
-		} else {
-			// run service
 		}
-		utils.Log.Infof("执行结束, exit ... ")
-		os.Exit(1)
-	}
+	}()
+
+	utils.Log.Infof("执行结束, exit ... ")
 }

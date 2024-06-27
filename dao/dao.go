@@ -12,8 +12,8 @@ import (
 	"github.com/baiyz0825/outline-wiki-sync/utils"
 )
 
-func Init() {
-	db, err := gorm.Open(sqlite.Open("gorm.db"), &gorm.Config{})
+func Init(dbPath string) {
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		utils.Log.Errorf("数据库初始化失败: %v", err)
 	}
