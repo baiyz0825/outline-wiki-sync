@@ -42,6 +42,7 @@ var initSql = `
 	    parent_id       TEXT,
 	    collection_path TEXT,
 	    collection_name TEXT,
+	    real_collection INTEGER,
 	    sync            INTEGER,
 	    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -53,7 +54,10 @@ var initSql = `
 	CREATE INDEX IF NOT EXISTS idx_collection_name ON outline_wiki_collection_mapping(collection_name);
 `
 
-func Init(dbPath string) {
+func Init(dbPath string, drayRun bool) {
+	if drayRun {
+		_ = os.Remove(dbPath)
+	}
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		xlog.Log.Errorf("数据库初始化失败: %v", err)

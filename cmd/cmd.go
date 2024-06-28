@@ -39,6 +39,7 @@ var (
 	syncWatch     bool
 	runOnceSync   bool
 	syncCorn      string
+	deleteDb      bool
 )
 
 func init() {
@@ -51,6 +52,7 @@ func init() {
 		"要监视的文件完整路径: 默认工作目录下的 outline.db")
 	rootCmd.PersistentFlags().BoolVar(&syncWatch, "syncWatch", false, "是否需要进行实时监听")
 	rootCmd.PersistentFlags().BoolVar(&runOnceSync, "runOnceSync", true, "只同步一次")
+	rootCmd.PersistentFlags().BoolVar(&deleteDb, "deleteDb", false, "是否删除db")
 	rootCmd.PersistentFlags().StringVar(&syncCorn, "syncCorn", "",
 		"实时监听 同步时间 corn 默认: 每10min一次 */10 * * * *")
 	_ = rootCmd.MarkPersistentFlagRequired("watchFilePath")
@@ -94,7 +96,7 @@ func Execute(args []string) {
 	// rateLimit
 	ratelimit.Init()
 	// init db
-	dao.Init(dbPath)
+	dao.Init(dbPath, deleteDb)
 	// init outline client
 	client.Init(outlineHost, sdkAuth)
 	// init cache

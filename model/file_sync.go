@@ -37,6 +37,7 @@ type OutlineWikiCollectionMapping struct {
 	ParentId       string         `gorm:"column:parent_id;index" comment:"父ID"`
 	CollectionPath string         `gorm:"column:collection_path;index" comment:"集合路径"`
 	CollectionName string         `gorm:"column:collection_name;index" comment:"集合名称"`
+	RealCollection bool           `gorm:"column:real_collection;index" comment:"是否是走createCollection创建的还是一个子文档集合"`
 	Sync           bool           `gorm:"column:sync" comment:"同步标志"`
 	CreatedAt      time.Time      `gorm:"column:created_at;autoCreateTime" comment:"创建时间"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at;autoUpdateTime" comment:"更新时间"`

@@ -48,38 +48,52 @@ func (s *SyncMarkDownFile) getMutexForPath(path string) *sync.Mutex {
 func (s *SyncMarkDownFile) SyncMarkdownFile() {
 	var rootWg sync.WaitGroup
 	for _, fileRootPath := range s.FileRootPath {
-		// init collectionId
-		base := filepath.Base(fileRootPath)
-		request := outline.PostCollectionsCreateJSONRequestBody{
-			Description: utils.PtrString(fmt.Sprintf("%s-%s", "sync->", base)),
-			Name:        base,
-			Private:     utils.PtrBool(true),
+		collectionId := ""
+		// // init collectionId
+		exist, err := dao.OutlineWikiCollectionMapping.WithContext(s.ctx).
+			Where(dao.OutlineWikiCollectionMapping.CollectionPath.Eq(fileRootPath)).First()
+		if err == nil && exist != nil {
+			collectionId = exist.CollectionId
+		} else {
+			base := filepath.Base(fileRootPath)
+			request := outline.PostCollectionsCreateJSONRequestBody{
+				Description: utils.PtrString(fmt.Sprintf("%s-%s", "sync->", base)),
+				Name:        base,
+				Private:     utils.PtrBool(true),
+			}
+			ok, response := client.OutlineSdk.CreateCollection(s.ctx, request)
+			if !ok {
+				xlog.Log.Errorf("创建outline文件夹失败: rawPath:%s request:%v response:%v", fileRootPath, request, response)
+				continue
+			}
+			xlog.Log.Infof("创建outline文件夹成功: rawPath:%s collectionId:%v", fileRootPath, response)
+			mapping := &model.OutlineWikiCollectionMapping{
+				CollectionId:   response.JSON200.Data.Id.String(),
+				CollectionPath: fileRootPath,
+				CollectionName: base,
+				RealCollection: true,
+				Sync:           true,
+				CreatedAt:      time.Time{},
+				UpdatedAt:      time.Time{},
+			}
+			err := dao.OutlineWikiCollectionMapping.WithContext(s.ctx).Create(mapping)
+			if err != nil {
+				xlog.Log.Errorf("创建outline文件夹 并保存db 失败: name:%s  data:%v", base, mapping)
+				continue
+			}
+			collectionId = mapping.CollectionId
+			xlog.Log.Errorf("创建outline集合 成功: name:%s  collectionId:%v", base, mapping.CollectionId)
 		}
-		ok, response := client.OutlineSdk.CreateCollection(s.ctx, request)
-		if !ok {
-			xlog.Log.Errorf("创建outline文件夹失败: rawPath:%s request:%v response:%v", fileRootPath, request, response)
-			continue
-		}
-		xlog.Log.Infof("创建outline文件夹成功: rawPath:%s collectionId:%v", fileRootPath, response)
-		mapping := &model.OutlineWikiCollectionMapping{
-			CollectionId:   response.JSON200.Data.Id.String(),
-			CollectionPath: fileRootPath,
-			CollectionName: base,
-			Sync:           true,
-			CreatedAt:      time.Time{},
-			UpdatedAt:      time.Time{},
-		}
-		err := dao.OutlineWikiCollectionMapping.WithContext(s.ctx).Create(mapping)
-		if err != nil {
-			xlog.Log.Errorf("创建outline文件夹 并保存db 失败: name:%s  data:%v", base, mapping)
-			continue
-		}
-		xlog.Log.Errorf("创建outline集合 成功: name:%s  collectionId:%v", base, mapping.CollectionId)
 
 		// process file dir
 		go func(rootPath, collectionId string, wg *sync.WaitGroup) {
 			rootWg.Add(1)
 			defer wg.Done()
+
+			if len(collectionId) == 0 || len(rootPath) == 0 {
+				return
+			}
+
 			var parentId *string
 			fileSystem := os.DirFS(rootPath)
 			err := fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
@@ -104,7 +118,7 @@ func (s *SyncMarkDownFile) SyncMarkdownFile() {
 				return nil
 			})
 			xlog.Log.Errorf("遍历文件夹出错：%v", err)
-		}(fileRootPath, mapping.CollectionId, &rootWg)
+		}(fileRootPath, collectionId, &rootWg)
 
 		// wait
 		rootWg.Wait()
@@ -163,6 +177,7 @@ func (s *SyncMarkDownFile) processDir(path, parentId, collectionId string) strin
 		ParentId:       parentId,
 		CollectionPath: path,
 		CollectionName: lastPathName,
+		RealCollection: false,
 		Sync:           true,
 		CreatedAt:      time.Time{},
 		UpdatedAt:      time.Time{},
