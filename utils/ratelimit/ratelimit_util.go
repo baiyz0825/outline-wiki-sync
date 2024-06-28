@@ -20,12 +20,12 @@ func Init() {
 	limiter = rate.NewLimiter(15*rate.Every(time.Second), 1)
 }
 
-// LimitRun 限流运行
-func LimitRun[T any](ctx context.Context, response *T, fuc func(*T) bool) bool {
+// LimitRunRequest 限流运行
+func LimitRunRequest[T any, R any](ctx context.Context, request *T, run func(ctx context.Context, request *T) *R) *R {
 	err := limiter.Wait(ctx)
 	if err != nil {
 		xlog.Log.Errorf("限流控制失败: %v", err)
-		return false
+		return nil
 	}
-	return fuc(response)
+	return run(ctx, request)
 }

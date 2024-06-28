@@ -17,6 +17,7 @@ import (
 	"github.com/baiyz0825/outline-wiki-sync/service"
 	"github.com/baiyz0825/outline-wiki-sync/utils/cache"
 	"github.com/baiyz0825/outline-wiki-sync/utils/client"
+	"github.com/baiyz0825/outline-wiki-sync/utils/ratelimit"
 	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
 	"github.com/spf13/cobra"
 )
@@ -43,13 +44,13 @@ var (
 func init() {
 	// init cmd params
 	rootCmd.PersistentFlags().StringVar(&watchFilePath, "watchFilePath", "", "outline服务host")
-	rootCmd.PersistentFlags().StringVar(&watchFilePath, "sdkAuth", "", "outline服务 api key")
-	rootCmd.PersistentFlags().StringVar(&watchFilePath, "outlineHost", "", "要监视的文件路径")
+	rootCmd.PersistentFlags().StringVar(&sdkAuth, "sdkAuth", "", "outline服务 api key")
+	rootCmd.PersistentFlags().StringVar(&outlineHost, "outlineHost", "", "要监视的文件路径")
 	defaultWorkDir, _ := os.Getwd()
 	rootCmd.PersistentFlags().StringVar(&dbPath, "dbPath", filepath.Join(defaultWorkDir, "outline.db"),
 		"要监视的文件完整路径: 默认工作目录下的 outline.db")
 	rootCmd.PersistentFlags().BoolVar(&syncWatch, "syncWatch", false, "是否需要进行实时监听")
-	rootCmd.PersistentFlags().BoolVar(&syncWatch, "runOnceSync", true, "只同步一次")
+	rootCmd.PersistentFlags().BoolVar(&runOnceSync, "runOnceSync", true, "只同步一次")
 	rootCmd.PersistentFlags().StringVar(&syncCorn, "syncCorn", "",
 		"实时监听 同步时间 corn 默认: 每10min一次 */10 * * * *")
 	_ = rootCmd.MarkPersistentFlagRequired("watchFilePath")
@@ -90,8 +91,10 @@ func Execute(args []string) {
 
 	// check
 	check()
+	// rateLimit
+	ratelimit.Init()
 	// init db
-	dao.Init(filepath.Join(dbPath, "outline.db"))
+	dao.Init(dbPath)
 	// init outline client
 	client.Init(outlineHost, sdkAuth)
 	// init cache
@@ -153,6 +156,6 @@ func cmdMainFunc(ctx context.Context) {
 			wg.Wait()
 		}
 	}()
-
+	mainWg.Wait()
 	xlog.Log.Infof("执行结束, exit ... ")
 }

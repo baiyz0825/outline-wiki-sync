@@ -25,7 +25,7 @@ var OutlineSdk *OutLineSdk
 
 func Init(host, sdkAuth string) {
 	Client, err := outline.NewClientWithResponses(
-		host,
+		host+"/api",
 		outline.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
 			req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", sdkAuth))
 			return nil
@@ -42,39 +42,36 @@ func Init(host, sdkAuth string) {
 
 // CreateCollection 创建集合
 func (s *OutLineSdk) CreateCollection(ctx context.Context, request outline.PostCollectionsCreateJSONRequestBody) (bool, outline.PostCollectionsCreateResponse) {
-	response := outline.PostCollectionsCreateResponse{}
-
-	f := func(responseP *outline.PostCollectionsCreateResponse) bool {
-		response, err := s.OutlineClientWithResponses.PostCollectionsCreateWithResponse(context.Background(), request)
-		if err != nil || response.StatusCode() != http.StatusOK || response.JSON200 == nil {
-			xlog.Log.Errorf("创建outline文件夹失: %v", response)
-			return false
+	f := func(ctx context.Context, request *outline.PostCollectionsCreateJSONRequestBody) *outline.PostCollectionsCreateResponse {
+		respClient, err := s.OutlineClientWithResponses.PostCollectionsCreateWithResponse(context.Background(), *request)
+		if err != nil || respClient.StatusCode() != http.StatusOK || respClient.JSON200 == nil {
+			xlog.Log.Errorf("创建outline文件夹失: %v", respClient)
+			return nil
 		}
-		return true
+		return respClient
 	}
-
-	if !ratelimit.LimitRun[outline.PostCollectionsCreateResponse](ctx, &response, f) {
-		return false, response
+	response := ratelimit.LimitRunRequest(ctx, &request, f)
+	if response == nil {
+		return false, outline.PostCollectionsCreateResponse{}
 	}
-	return true, response
+	return true, *response
 }
 
 // CreateDocument 创建文档
 func (s *OutLineSdk) CreateDocument(ctx context.Context, request outline.PostDocumentsCreateJSONRequestBody) (bool,
 	outline.PostDocumentsCreateResponse) {
-	response := outline.PostDocumentsCreateResponse{}
-
-	f := func(responseP *outline.PostDocumentsCreateResponse) bool {
-		response, err := s.OutlineClientWithResponses.PostDocumentsCreateWithResponse(context.Background(), request)
+	f := func(ctx context.Context, request *outline.PostDocumentsCreateJSONRequestBody) *outline.PostDocumentsCreateResponse {
+		response, err := s.OutlineClientWithResponses.PostDocumentsCreateWithResponse(context.Background(), *request)
 		if err != nil || response.StatusCode() != http.StatusOK || response.JSON200 == nil {
 			xlog.Log.Errorf("创建outline文件失败: %v", response)
-			return false
+			return nil
 		}
-		return true
+		return response
 	}
 
-	if !ratelimit.LimitRun[outline.PostDocumentsCreateResponse](ctx, &response, f) {
-		return false, response
+	response := ratelimit.LimitRunRequest(ctx, &request, f)
+	if response == nil {
+		return false, outline.PostDocumentsCreateResponse{}
 	}
-	return true, response
+	return true, *response
 }
