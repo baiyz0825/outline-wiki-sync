@@ -7,6 +7,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -14,12 +15,15 @@ import (
 	"sync"
 	"time"
 
+	"gorm.io/gorm"
+
 	"github.com/baiyz0825/outline-wiki-sdk"
 	"github.com/baiyz0825/outline-wiki-sync/dao"
 	"github.com/baiyz0825/outline-wiki-sync/model"
 	"github.com/baiyz0825/outline-wiki-sync/utils"
 	cache2 "github.com/baiyz0825/outline-wiki-sync/utils/cache"
 	"github.com/baiyz0825/outline-wiki-sync/utils/client"
+	"github.com/baiyz0825/outline-wiki-sync/utils/jsonutils"
 	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
 	"github.com/google/uuid"
 	"github.com/patrickmn/go-cache"
@@ -47,6 +51,7 @@ func (s *SyncMarkDownFile) getMutexForPath(path string) *sync.Mutex {
 // SyncMarkdownFile 同步Markdown文件
 func (s *SyncMarkDownFile) SyncMarkdownFile() {
 	var rootWg sync.WaitGroup
+	defer rootWg.Wait()
 	for _, fileRootPath := range s.FileRootPath {
 		collectionId := ""
 		// // init collectionId
@@ -86,42 +91,46 @@ func (s *SyncMarkDownFile) SyncMarkdownFile() {
 		}
 
 		// process file dir
-		go func(rootPath, collectionId string, wg *sync.WaitGroup) {
-			rootWg.Add(1)
-			defer wg.Done()
 
-			if len(collectionId) == 0 || len(rootPath) == 0 {
-				return
+		if len(collectionId) == 0 || len(fileRootPath) == 0 {
+			return
+		}
+
+		parentId := ""
+		fileSystem := os.DirFS(fileRootPath)
+		err = fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				xlog.Log.Error("遍历文件路径失败: %v", err)
+				return nil
 			}
 
-			var parentId *string
-			fileSystem := os.DirFS(rootPath)
-			err := fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
-				if err != nil {
-					xlog.Log.Error("遍历文件路径失败: %v", err)
-					return nil
-				}
-
-				// 深度遍历结束回到最上层时候恢复parentId
-				if filepath.Dir(path) == rootPath {
-					parentId = utils.PtrString("")
-				}
-
-				if d.IsDir() {
-					// 获取目录的 parent Id
-					parentId = utils.PtrString(s.processDir(path, *parentId, collectionId))
-				} else {
-					go func() {
-						s.processFile(path, *parentId, collectionId)
-					}()
-				}
+			if path == "." {
 				return nil
-			})
-			xlog.Log.Errorf("遍历文件夹出错：%v", err)
-		}(fileRootPath, collectionId, &rootWg)
+			}
 
-		// wait
-		rootWg.Wait()
+			absPath := filepath.Join(fileRootPath, path)
+			// 深度遍历结束回到最上层时候恢复parentId
+			if filepath.Dir(absPath) == fileRootPath {
+				parentId = ""
+			}
+
+			if d.IsDir() {
+				// 获取目录的 parent Id
+				parentId = s.processDir(absPath, parentId, collectionId)
+				return nil
+			}
+
+			// processFile
+			s.processFile(absPath, parentId, collectionId)
+
+			return nil
+		})
+
+		if err != nil {
+			xlog.Log.Errorf("遍历文件夹结束但是存在错误: %v", err)
+			return
+		}
+		xlog.Log.Infof("遍历文件夹出结束")
 	}
 }
 
@@ -145,7 +154,7 @@ func (s *SyncMarkDownFile) processDir(path, parentId, collectionId string) strin
 	// 2. 检查数据库是否创建了这个Id
 	wikiCollectionMapping, err := dao.OutlineWikiCollectionMapping.WithContext(s.ctx).
 		Where(dao.OutlineWikiCollectionMapping.CollectionPath.Eq(path), dao.OutlineWikiCollectionMapping.RealCollection.Is(false)).First()
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		xlog.Log.Errorf("查询outline一般子文件夹配置: rawPath:%s", path)
 		return ""
 	}
@@ -160,13 +169,13 @@ func (s *SyncMarkDownFile) processDir(path, parentId, collectionId string) strin
 	collectionUUID, _ := uuid.Parse(collectionId)
 	request := outline.PostDocumentsCreateJSONRequestBody{
 		CollectionId: collectionUUID,
-		Publish:      utils.PtrBool(false),
+		Publish:      utils.PtrBool(true),
 		Text:         utils.PtrString(lastPathName),
 		Title:        lastPathName,
 	}
 	ok, response := client.OutlineSdk.CreateDocument(s.ctx, request)
 	if !ok {
-		xlog.Log.Errorf("创建outline一般子文件夹失败: rawPath:%s request:%v response:%v", path, request, response)
+		xlog.Log.Errorf("创建outline一般子文件夹失败: rawPath:%s request:%s response:%s", path, jsonutils.ToJsonStr(request), jsonutils.ToJsonStr(response))
 		return ""
 	}
 	xlog.Log.Infof("创建outline一般子文件夹成功: rawPath:%s collectionId:%v", path, response.JSON200.Data.Id)
@@ -239,13 +248,13 @@ func (s *SyncMarkDownFile) processFile(path, parentId, collectionId string) {
 	request := outline.PostDocumentsCreateJSONRequestBody{
 		CollectionId:     collectionUUID,
 		ParentDocumentId: &uuidParentDocId,
-		Publish:          utils.PtrBool(false),
+		Publish:          utils.PtrBool(true),
 		Text:             utils.PtrString(string(fileContent)),
 		Title:            stat.Name(),
 	}
 	ok, response := client.OutlineSdk.CreateDocument(s.ctx, request)
 	if !ok {
-		xlog.Log.Errorf("创建outline文档失败: rawPath:%s request:%v response:%v", path, request, response)
+		xlog.Log.Errorf("创建outline文档失败: rawPath:%s request:%s response:%s", path, jsonutils.ToJsonStr(request), jsonutils.ToJsonStr(request))
 		return
 	}
 	xlog.Log.Infof("创建outline文档成功: rawPath:%s wikiId:%v", path, response.JSON200.Data.Id)

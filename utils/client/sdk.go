@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/baiyz0825/outline-wiki-sdk"
+	"github.com/baiyz0825/outline-wiki-sync/utils/jsonutils"
 	"github.com/baiyz0825/outline-wiki-sync/utils/ratelimit"
 	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
 )
@@ -23,29 +24,32 @@ type OutLineSdk struct {
 
 var OutlineSdk *OutLineSdk
 
+var reqAuth outline.RequestEditorFn
+
 func Init(host, sdkAuth string) {
-	Client, err := outline.NewClientWithResponses(
-		host+"/api",
-		outline.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", sdkAuth))
-			return nil
-		}),
+	client, err := outline.NewClientWithResponses(
+		host + "/api",
 	)
 	if err != nil {
 		xlog.Log.Errorf("初始化outLine客户端失败: %s", err)
 		os.Exit(1)
 	}
+	reqAuth = func(ctx context.Context, req *http.Request) error {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", sdkAuth))
+		xlog.Log.Debugf("增加请求key: %+v", req.Header)
+		return nil
+	}
 	OutlineSdk = &OutLineSdk{
-		OutlineClientWithResponses: Client,
+		OutlineClientWithResponses: client,
 	}
 }
 
 // CreateCollection 创建集合
 func (s *OutLineSdk) CreateCollection(ctx context.Context, request outline.PostCollectionsCreateJSONRequestBody) (bool, outline.PostCollectionsCreateResponse) {
 	f := func(ctx context.Context, request *outline.PostCollectionsCreateJSONRequestBody) *outline.PostCollectionsCreateResponse {
-		respClient, err := s.OutlineClientWithResponses.PostCollectionsCreateWithResponse(context.Background(), *request)
+		respClient, err := s.OutlineClientWithResponses.PostCollectionsCreateWithResponse(context.Background(), *request, reqAuth)
 		if err != nil || respClient.StatusCode() != http.StatusOK || respClient.JSON200 == nil {
-			xlog.Log.Errorf("创建outline文件夹失: %v", respClient)
+			xlog.Log.Errorf("创建outline文件夹失: %s err:%v", jsonutils.ToJsonStr(respClient), err)
 			return nil
 		}
 		return respClient
@@ -61,9 +65,9 @@ func (s *OutLineSdk) CreateCollection(ctx context.Context, request outline.PostC
 func (s *OutLineSdk) CreateDocument(ctx context.Context, request outline.PostDocumentsCreateJSONRequestBody) (bool,
 	outline.PostDocumentsCreateResponse) {
 	f := func(ctx context.Context, request *outline.PostDocumentsCreateJSONRequestBody) *outline.PostDocumentsCreateResponse {
-		response, err := s.OutlineClientWithResponses.PostDocumentsCreateWithResponse(context.Background(), *request)
+		response, err := s.OutlineClientWithResponses.PostDocumentsCreateWithResponse(context.Background(), *request, reqAuth)
 		if err != nil || response.StatusCode() != http.StatusOK || response.JSON200 == nil {
-			xlog.Log.Errorf("创建outline文件失败: %v", response)
+			xlog.Log.Errorf("创建outline文件Doc失败: %s error:%v", jsonutils.ToJsonStr(response), err)
 			return nil
 		}
 		return response

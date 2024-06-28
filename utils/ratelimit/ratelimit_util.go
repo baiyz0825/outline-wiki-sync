@@ -17,7 +17,7 @@ import (
 var limiter *rate.Limiter
 
 func Init() {
-	limiter = rate.NewLimiter(15*rate.Every(time.Second), 1)
+	limiter = rate.NewLimiter(15*rate.Every(time.Minute), 1)
 }
 
 // LimitRunRequest 限流运行

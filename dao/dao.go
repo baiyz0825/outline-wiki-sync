@@ -27,7 +27,7 @@ var initSql = `
 	    sync            INTEGER,
 	    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	    deleted         INTEGER
+	    deleted         TIMESTAMP
 	);
 	
 	CREATE INDEX IF NOT EXISTS idx_outline_wiki_id ON file_sync_record(outline_wiki_id);
@@ -46,7 +46,7 @@ var initSql = `
 	    sync            INTEGER,
 	    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	    deleted         INTEGER
+	    deleted         TIMESTAMP
 	);
 	
 	CREATE INDEX IF NOT EXISTS idx_collection_id ON outline_wiki_collection_mapping(collection_id);

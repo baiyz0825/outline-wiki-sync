@@ -12,7 +12,7 @@ import (
 )
 
 type FileSyncRecord struct {
-	Id            string         `gorm:"column:id;primaryKey" comment:"记录ID"`
+	Id            uint           `gorm:"column:id;primaryKey" comment:"记录ID"`
 	OutlineWikiId string         `gorm:"column:outline_wiki_id" comment:"大纲Wiki ID"`
 	CollectionId  string         `gorm:"column:collection_id" comment:"集合ID"`
 	FileName      string         `gorm:"column:file_name" comment:"文件名"`
@@ -20,8 +20,8 @@ type FileSyncRecord struct {
 	FilePath      string         `gorm:"column:file_path" comment:"文件路径"`
 	FileContent   string         `gorm:"column:file_content" comment:"文件内容"`
 	Sync          bool           `gorm:"column:sync" comment:"同步标志"`
-	CreatedAt     time.Time      `gorm:"column:created_at;autoCreateTime" comment:"创建时间"`
-	UpdatedAt     time.Time      `gorm:"column:updated_at;autoUpdateTime" comment:"更新时间"`
+	CreatedAt     time.Time      `gorm:"column:created_at;" comment:"创建时间"`
+	UpdatedAt     time.Time      `gorm:"column:updated_at;" comment:"更新时间"`
 	Deleted       gorm.DeletedAt `gorm:"column:deleted" comment:"删除标志"`
 }
 
@@ -39,8 +39,8 @@ type OutlineWikiCollectionMapping struct {
 	CollectionName string         `gorm:"column:collection_name;index" comment:"集合名称"`
 	RealCollection bool           `gorm:"column:real_collection;index" comment:"是否是走createCollection创建的还是一个子文档集合"`
 	Sync           bool           `gorm:"column:sync" comment:"同步标志"`
-	CreatedAt      time.Time      `gorm:"column:created_at;autoCreateTime" comment:"创建时间"`
-	UpdatedAt      time.Time      `gorm:"column:updated_at;autoUpdateTime" comment:"更新时间"`
+	CreatedAt      time.Time      `gorm:"column:created_at;" comment:"创建时间"`
+	UpdatedAt      time.Time      `gorm:"column:updated_at;" comment:"更新时间"`
 	Deleted        gorm.DeletedAt `gorm:"column:deleted" comment:"删除标志"`
 }
 

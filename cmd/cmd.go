@@ -118,7 +118,10 @@ func Execute(args []string) {
 		cancel()
 	}()
 
-	cmdMainFunc(ctx)
+	go func() {
+		cmdMainFunc(ctx)
+		cancel()
+	}()
 
 	// 等待任务完成或收到中断信号
 	<-ctx.Done()
@@ -130,34 +133,35 @@ func cmdMainFunc(ctx context.Context) {
 	fileRootPath = append(fileRootPath, watchFilePath)
 	// func
 	var mainWg sync.WaitGroup
+	defer mainWg.Wait()
 
 	// run sync markDown
-	go func() {
-		mainWg.Add(1)
-		defer mainWg.Done()
+	go func(wg *sync.WaitGroup) {
+		wg.Add(1)
+		defer wg.Done()
 		if runOnceSync {
 			service.NewSyncMarkDownFile(ctx, fileRootPath).SyncMarkdownFile()
 		}
-	}()
+	}(&mainWg)
 
 	// run sync watchDir
-	go func() {
-		mainWg.Add(1)
-		defer mainWg.Done()
+	go func(wg *sync.WaitGroup) {
+		wg.Add(1)
+		defer wg.Done()
 		if syncWatch {
-			var wg sync.WaitGroup
+			var innerWatchWg sync.WaitGroup
+			// 实时监听
+			defer innerWatchWg.Wait()
 			for _, pathItem := range fileRootPath {
-				wg.Add(1)
+				innerWatchWg.Add(1)
 				go func(path string) {
-					defer wg.Done()
+					defer innerWatchWg.Done()
 					// run service
 					service.NewFileWatch(ctx, path).WatchDir()
 				}(pathItem)
 			}
-			// 实时监听
-			wg.Wait()
+
 		}
-	}()
-	mainWg.Wait()
+	}(&mainWg)
 	xlog.Log.Infof("执行结束, exit ... ")
 }
