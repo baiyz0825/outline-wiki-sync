@@ -25,6 +25,7 @@ import (
 	"github.com/baiyz0825/outline-wiki-sync/utils/client"
 	"github.com/baiyz0825/outline-wiki-sync/utils/jsonutils"
 	"github.com/baiyz0825/outline-wiki-sync/utils/xlog"
+	"github.com/baiyz0825/outline-wiki-sync/utils/xrandonm"
 	"github.com/google/uuid"
 	"github.com/patrickmn/go-cache"
 )
@@ -63,6 +64,7 @@ func (s *SyncMarkDownFile) SyncMarkdownFile() {
 			base := filepath.Base(fileRootPath)
 			request := outline.PostCollectionsCreateJSONRequestBody{
 				Description: utils.PtrString(fmt.Sprintf("%s-%s", "sync->", base)),
+				Color:       utils.PtrString(xrandonm.GenerateRandomColor()),
 				Name:        base,
 				Private:     utils.PtrBool(true),
 			}
@@ -71,7 +73,7 @@ func (s *SyncMarkDownFile) SyncMarkdownFile() {
 				xlog.Log.Errorf("创建outline文件夹失败: rawPath:%s request:%v response:%v", fileRootPath, request, response)
 				continue
 			}
-			xlog.Log.Infof("创建outline文件夹成功: rawPath:%s collectionId:%v", fileRootPath, response)
+			xlog.Log.Debugf("创建outline文件夹成功: rawPath:%s collectionId:%v", fileRootPath, jsonutils.ToJsonStr(response))
 			mapping := &model.OutlineWikiCollectionMapping{
 				CollectionId:   response.JSON200.Data.Id.String(),
 				CollectionPath: fileRootPath,
@@ -87,7 +89,7 @@ func (s *SyncMarkDownFile) SyncMarkdownFile() {
 				continue
 			}
 			collectionId = mapping.CollectionId
-			xlog.Log.Errorf("创建outline集合 成功: name:%s  collectionId:%v", base, mapping.CollectionId)
+			xlog.Log.Infof("创建outline集合 成功: name:%s  collectionId:%v", base, mapping.CollectionId)
 		}
 
 		// process file dir
@@ -243,14 +245,17 @@ func (s *SyncMarkDownFile) processFile(path, parentId, collectionId string) {
 	}
 
 	// 请求接口创建文档
-	uuidParentDocId, _ := uuid.Parse(parentId)
 	collectionUUID, _ := uuid.Parse(collectionId)
 	request := outline.PostDocumentsCreateJSONRequestBody{
-		CollectionId:     collectionUUID,
-		ParentDocumentId: &uuidParentDocId,
-		Publish:          utils.PtrBool(true),
-		Text:             utils.PtrString(string(fileContent)),
-		Title:            stat.Name(),
+		CollectionId: collectionUUID,
+		Publish:      utils.PtrBool(true),
+		Text:         utils.PtrString(string(fileContent)),
+		Title:        stat.Name(),
+	}
+	// 最一层文件没有父 parentDoc
+	if len(parentId) != 0 {
+		uuidParentDocId, _ := uuid.Parse(parentId)
+		request.ParentDocumentId = &uuidParentDocId
 	}
 	ok, response := client.OutlineSdk.CreateDocument(s.ctx, request)
 	if !ok {
@@ -260,7 +265,7 @@ func (s *SyncMarkDownFile) processFile(path, parentId, collectionId string) {
 	xlog.Log.Infof("创建outline文档成功: rawPath:%s wikiId:%v", path, response.JSON200.Data.Id)
 	updateResult, err := dao.FileSyncRecord.WithContext(s.ctx).
 		Where(dao.FileSyncRecord.FilePath.Eq(path)).
-		Update(dao.FileSyncRecord.OutlineWikiId, response.JSON200.Data.Id.String())
+		UpdateSimple(dao.FileSyncRecord.OutlineWikiId.Value(response.JSON200.Data.Id.String()), dao.FileSyncRecord.Sync.Value(true))
 	if err != nil {
 		xlog.Log.Errorf("创建outline一般子文件夹 更新db 失败: name:%s  data:%v", stat.Name(), mapping)
 		return

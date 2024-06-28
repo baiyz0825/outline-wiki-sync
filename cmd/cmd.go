@@ -133,8 +133,8 @@ func cmdMainFunc(ctx context.Context) {
 	fileRootPath = append(fileRootPath, watchFilePath)
 	// func
 	var mainWg sync.WaitGroup
+	defer xlog.Log.Infof("Finish, exit ... ")
 	defer mainWg.Wait()
-
 	// run sync markDown
 	go func(wg *sync.WaitGroup) {
 		wg.Add(1)
@@ -163,5 +163,4 @@ func cmdMainFunc(ctx context.Context) {
 
 		}
 	}(&mainWg)
-	xlog.Log.Infof("执行结束, exit ... ")
 }

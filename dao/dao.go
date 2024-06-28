@@ -6,6 +6,8 @@
 package dao
 
 import (
+	"database/sql"
+	"fmt"
 	"os"
 
 	"gorm.io/driver/sqlite"
@@ -56,9 +58,14 @@ var initSql = `
 
 func Init(dbPath string, drayRun bool) {
 	if drayRun {
-		_ = os.Remove(dbPath)
+		DeleteDbFile(dbPath)
 	}
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+		Logger: &xlog.GormLogger{
+			Debug:                 false,
+			SkipErrRecordNotFound: true,
+		},
+	})
 	if err != nil {
 		xlog.Log.Errorf("数据库初始化失败: %v", err)
 	}
@@ -79,4 +86,57 @@ func Init(dbPath string, drayRun bool) {
 	// 注入db到查询器中
 	SetDefault(db)
 	xlog.Log.Infof("数据库初始化成功: path:%s", dbPath)
+}
+
+func clearDatabase(db *sql.DB) error {
+	tables, err := db.Query("SELECT name FROM sqlite_master WHERE type='table';")
+	if err != nil {
+		return fmt.Errorf("failed to list tables: %v", err)
+	}
+	defer func(tables *sql.Rows) {
+		err := tables.Close()
+		if err != nil {
+			xlog.Log.Fatalf("database table close failure %v", err)
+		}
+	}(tables)
+
+	var tableName string
+	for tables.Next() {
+		if err := tables.Scan(&tableName); err != nil {
+			return fmt.Errorf("failed to scan table name: %v", err)
+		}
+
+		// Skip sqlite_sequence table which is used for AUTOINCREMENT
+		if tableName == "sqlite_sequence" {
+			continue
+		}
+
+		_, err := db.Exec(fmt.Sprintf("DELETE FROM %s;", tableName))
+		if err != nil {
+			return fmt.Errorf("failed to clear table %s: %v", tableName, err)
+		}
+
+		// Optionally, reset the autoincrement sequence
+		_, err = db.Exec(fmt.Sprintf("DELETE FROM sqlite_sequence WHERE name='%s';", tableName))
+		if err != nil {
+			return fmt.Errorf("failed to reset sequence for table %s: %v", tableName, err)
+		}
+	}
+
+	return nil
+}
+
+func DeleteDbFile(dbFile string) {
+	// Check if the file exists
+	if _, err := os.Stat(dbFile); err == nil {
+		// Remove the database file
+		err := os.Remove(dbFile)
+		if err != nil {
+			xlog.Log.Fatalf("Failed to remove database file: %v", err)
+		} else {
+			xlog.Log.Infof("Database file removed successfully.")
+		}
+	} else {
+		xlog.Log.Infof("Database file does not exist.")
+	}
 }
