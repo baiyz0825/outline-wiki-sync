@@ -62,7 +62,7 @@ func Init(dbPath string, drayRun bool) {
 	}
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 		Logger: &xlog.GormLogger{
-			Debug:                 false,
+			Debug:                 true,
 			SkipErrRecordNotFound: true,
 		},
 	})

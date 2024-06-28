@@ -133,22 +133,20 @@ func cmdMainFunc(ctx context.Context) {
 	fileRootPath = append(fileRootPath, watchFilePath)
 	// func
 	var mainWg sync.WaitGroup
-	defer xlog.Log.Infof("Finish, exit ... ")
-	defer mainWg.Wait()
 	// run sync markDown
-	go func(wg *sync.WaitGroup) {
-		wg.Add(1)
-		defer wg.Done()
-		if runOnceSync {
+	if runOnceSync {
+		mainWg.Add(1)
+		go func(wg *sync.WaitGroup) {
+			defer wg.Done()
 			service.NewSyncMarkDownFile(ctx, fileRootPath).SyncMarkdownFile()
-		}
-	}(&mainWg)
+		}(&mainWg)
+	}
 
 	// run sync watchDir
-	go func(wg *sync.WaitGroup) {
-		wg.Add(1)
-		defer wg.Done()
-		if syncWatch {
+	if syncWatch {
+		mainWg.Add(1)
+		go func(wg *sync.WaitGroup) {
+			defer wg.Done()
 			var innerWatchWg sync.WaitGroup
 			// 实时监听
 			defer innerWatchWg.Wait()
@@ -161,6 +159,8 @@ func cmdMainFunc(ctx context.Context) {
 				}(pathItem)
 			}
 
-		}
-	}(&mainWg)
+		}(&mainWg)
+	}
+	mainWg.Wait()
+	xlog.Log.Infof("Finish, exit ... ")
 }
