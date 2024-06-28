@@ -17,14 +17,14 @@ import (
 
 func init() {
 	InitializeDB()
-	err := _gen_test_db.AutoMigrate(&model.FileSyncRecord{})
+	err := db.AutoMigrate(&model.FileSyncRecord{})
 	if err != nil {
 		fmt.Printf("Error: AutoMigrate(&model.FileSyncRecord{}) fail: %s", err)
 	}
 }
 
 func Test_fileSyncRecordQuery(t *testing.T) {
-	fileSyncRecord := newFileSyncRecord(_gen_test_db)
+	fileSyncRecord := newFileSyncRecord(db)
 	fileSyncRecord = *fileSyncRecord.As(fileSyncRecord.TableName())
 	_do := fileSyncRecord.WithContext(context.Background()).Debug()
 
@@ -126,7 +126,7 @@ func Test_fileSyncRecordQuery(t *testing.T) {
 	}
 
 	var _a _another
-	var _aPK = field.NewString(_a.TableName(), "id")
+	var _aPK = field.NewString(_a.TableName(), clause.PrimaryKey)
 
 	err = _do.Join(&_a, primaryKey.EqCol(_aPK)).Scan(map[string]interface{}{})
 	if err != nil {

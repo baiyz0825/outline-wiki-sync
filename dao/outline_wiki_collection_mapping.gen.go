@@ -29,12 +29,15 @@ func newOutlineWikiCollectionMapping(db *gorm.DB, opts ...gen.DOOption) outlineW
 	_outlineWikiCollectionMapping.ALL = field.NewAsterisk(tableName)
 	_outlineWikiCollectionMapping.Id = field.NewUint(tableName, "id")
 	_outlineWikiCollectionMapping.CollectionId = field.NewString(tableName, "collection_id")
+	_outlineWikiCollectionMapping.CurrentId = field.NewString(tableName, "current_id")
+	_outlineWikiCollectionMapping.ParentId = field.NewString(tableName, "parent_id")
 	_outlineWikiCollectionMapping.CollectionPath = field.NewString(tableName, "collection_path")
 	_outlineWikiCollectionMapping.CollectionName = field.NewString(tableName, "collection_name")
+	_outlineWikiCollectionMapping.RealCollection = field.NewBool(tableName, "real_collection")
 	_outlineWikiCollectionMapping.Sync = field.NewBool(tableName, "sync")
 	_outlineWikiCollectionMapping.CreatedAt = field.NewTime(tableName, "created_at")
 	_outlineWikiCollectionMapping.UpdatedAt = field.NewTime(tableName, "updated_at")
-	_outlineWikiCollectionMapping.Deleted = field.NewBool(tableName, "deleted")
+	_outlineWikiCollectionMapping.Deleted = field.NewField(tableName, "deleted")
 
 	_outlineWikiCollectionMapping.fillFieldMap()
 
@@ -47,12 +50,15 @@ type outlineWikiCollectionMapping struct {
 	ALL            field.Asterisk
 	Id             field.Uint
 	CollectionId   field.String
+	CurrentId      field.String
+	ParentId       field.String
 	CollectionPath field.String
 	CollectionName field.String
+	RealCollection field.Bool
 	Sync           field.Bool
 	CreatedAt      field.Time
 	UpdatedAt      field.Time
-	Deleted        field.Bool
+	Deleted        field.Field
 
 	fieldMap map[string]field.Expr
 }
@@ -71,12 +77,15 @@ func (o *outlineWikiCollectionMapping) updateTableName(table string) *outlineWik
 	o.ALL = field.NewAsterisk(table)
 	o.Id = field.NewUint(table, "id")
 	o.CollectionId = field.NewString(table, "collection_id")
+	o.CurrentId = field.NewString(table, "current_id")
+	o.ParentId = field.NewString(table, "parent_id")
 	o.CollectionPath = field.NewString(table, "collection_path")
 	o.CollectionName = field.NewString(table, "collection_name")
+	o.RealCollection = field.NewBool(table, "real_collection")
 	o.Sync = field.NewBool(table, "sync")
 	o.CreatedAt = field.NewTime(table, "created_at")
 	o.UpdatedAt = field.NewTime(table, "updated_at")
-	o.Deleted = field.NewBool(table, "deleted")
+	o.Deleted = field.NewField(table, "deleted")
 
 	o.fillFieldMap()
 
@@ -93,10 +102,6 @@ func (o outlineWikiCollectionMapping) TableName() string {
 
 func (o outlineWikiCollectionMapping) Alias() string { return o.outlineWikiCollectionMappingDo.Alias() }
 
-func (o outlineWikiCollectionMapping) Columns(cols ...field.Expr) gen.Columns {
-	return o.outlineWikiCollectionMappingDo.Columns(cols...)
-}
-
 func (o *outlineWikiCollectionMapping) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 	_f, ok := o.fieldMap[fieldName]
 	if !ok || _f == nil {
@@ -107,11 +112,14 @@ func (o *outlineWikiCollectionMapping) GetFieldByName(fieldName string) (field.O
 }
 
 func (o *outlineWikiCollectionMapping) fillFieldMap() {
-	o.fieldMap = make(map[string]field.Expr, 8)
+	o.fieldMap = make(map[string]field.Expr, 11)
 	o.fieldMap["id"] = o.Id
 	o.fieldMap["collection_id"] = o.CollectionId
+	o.fieldMap["current_id"] = o.CurrentId
+	o.fieldMap["parent_id"] = o.ParentId
 	o.fieldMap["collection_path"] = o.CollectionPath
 	o.fieldMap["collection_name"] = o.CollectionName
+	o.fieldMap["real_collection"] = o.RealCollection
 	o.fieldMap["sync"] = o.Sync
 	o.fieldMap["created_at"] = o.CreatedAt
 	o.fieldMap["updated_at"] = o.UpdatedAt
@@ -233,6 +241,10 @@ func (o outlineWikiCollectionMappingDo) Select(conds ...field.Expr) IOutlineWiki
 
 func (o outlineWikiCollectionMappingDo) Where(conds ...gen.Condition) IOutlineWikiCollectionMappingDo {
 	return o.withDO(o.DO.Where(conds...))
+}
+
+func (o outlineWikiCollectionMappingDo) Exists(subquery interface{ UnderlyingDB() *gorm.DB }) IOutlineWikiCollectionMappingDo {
+	return o.Where(field.CompareSubQuery(field.ExistsOp, nil, subquery.UnderlyingDB()))
 }
 
 func (o outlineWikiCollectionMappingDo) Order(conds ...field.Expr) IOutlineWikiCollectionMappingDo {

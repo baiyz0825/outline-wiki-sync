@@ -31,13 +31,13 @@ func newFileSyncRecord(db *gorm.DB, opts ...gen.DOOption) fileSyncRecord {
 	_fileSyncRecord.OutlineWikiId = field.NewString(tableName, "outline_wiki_id")
 	_fileSyncRecord.CollectionId = field.NewString(tableName, "collection_id")
 	_fileSyncRecord.FileName = field.NewString(tableName, "file_name")
-	_fileSyncRecord.FileSize = field.NewString(tableName, "file_size")
+	_fileSyncRecord.FileSize = field.NewFloat64(tableName, "file_size")
 	_fileSyncRecord.FilePath = field.NewString(tableName, "file_path")
 	_fileSyncRecord.FileContent = field.NewString(tableName, "file_content")
 	_fileSyncRecord.Sync = field.NewBool(tableName, "sync")
 	_fileSyncRecord.CreatedAt = field.NewTime(tableName, "created_at")
 	_fileSyncRecord.UpdatedAt = field.NewTime(tableName, "updated_at")
-	_fileSyncRecord.Deleted = field.NewBool(tableName, "deleted")
+	_fileSyncRecord.Deleted = field.NewField(tableName, "deleted")
 
 	_fileSyncRecord.fillFieldMap()
 
@@ -52,13 +52,13 @@ type fileSyncRecord struct {
 	OutlineWikiId field.String
 	CollectionId  field.String
 	FileName      field.String
-	FileSize      field.String
+	FileSize      field.Float64
 	FilePath      field.String
 	FileContent   field.String
 	Sync          field.Bool
 	CreatedAt     field.Time
 	UpdatedAt     field.Time
-	Deleted       field.Bool
+	Deleted       field.Field
 
 	fieldMap map[string]field.Expr
 }
@@ -79,13 +79,13 @@ func (f *fileSyncRecord) updateTableName(table string) *fileSyncRecord {
 	f.OutlineWikiId = field.NewString(table, "outline_wiki_id")
 	f.CollectionId = field.NewString(table, "collection_id")
 	f.FileName = field.NewString(table, "file_name")
-	f.FileSize = field.NewString(table, "file_size")
+	f.FileSize = field.NewFloat64(table, "file_size")
 	f.FilePath = field.NewString(table, "file_path")
 	f.FileContent = field.NewString(table, "file_content")
 	f.Sync = field.NewBool(table, "sync")
 	f.CreatedAt = field.NewTime(table, "created_at")
 	f.UpdatedAt = field.NewTime(table, "updated_at")
-	f.Deleted = field.NewBool(table, "deleted")
+	f.Deleted = field.NewField(table, "deleted")
 
 	f.fillFieldMap()
 
@@ -99,10 +99,6 @@ func (f *fileSyncRecord) WithContext(ctx context.Context) IFileSyncRecordDo {
 func (f fileSyncRecord) TableName() string { return f.fileSyncRecordDo.TableName() }
 
 func (f fileSyncRecord) Alias() string { return f.fileSyncRecordDo.Alias() }
-
-func (f fileSyncRecord) Columns(cols ...field.Expr) gen.Columns {
-	return f.fileSyncRecordDo.Columns(cols...)
-}
 
 func (f *fileSyncRecord) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 	_f, ok := f.fieldMap[fieldName]
@@ -243,6 +239,10 @@ func (f fileSyncRecordDo) Select(conds ...field.Expr) IFileSyncRecordDo {
 
 func (f fileSyncRecordDo) Where(conds ...gen.Condition) IFileSyncRecordDo {
 	return f.withDO(f.DO.Where(conds...))
+}
+
+func (f fileSyncRecordDo) Exists(subquery interface{ UnderlyingDB() *gorm.DB }) IFileSyncRecordDo {
+	return f.Where(field.CompareSubQuery(field.ExistsOp, nil, subquery.UnderlyingDB()))
 }
 
 func (f fileSyncRecordDo) Order(conds ...field.Expr) IFileSyncRecordDo {

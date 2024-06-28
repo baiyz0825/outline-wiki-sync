@@ -51,7 +51,7 @@ func (s *SyncMarkDownFile) SyncMarkdownFile() {
 		collectionId := ""
 		// // init collectionId
 		exist, err := dao.OutlineWikiCollectionMapping.WithContext(s.ctx).
-			Where(dao.OutlineWikiCollectionMapping.CollectionPath.Eq(fileRootPath)).First()
+			Where(dao.OutlineWikiCollectionMapping.CollectionPath.Eq(fileRootPath), dao.OutlineWikiCollectionMapping.RealCollection.Is(true)).First()
 		if err == nil && exist != nil {
 			collectionId = exist.CollectionId
 		} else {
@@ -144,7 +144,7 @@ func (s *SyncMarkDownFile) processDir(path, parentId, collectionId string) strin
 
 	// 2. 检查数据库是否创建了这个Id
 	wikiCollectionMapping, err := dao.OutlineWikiCollectionMapping.WithContext(s.ctx).
-		Where(dao.OutlineWikiCollectionMapping.CollectionPath.Eq(path)).First()
+		Where(dao.OutlineWikiCollectionMapping.CollectionPath.Eq(path), dao.OutlineWikiCollectionMapping.RealCollection.Is(false)).First()
 	if err != nil {
 		xlog.Log.Errorf("查询outline一般子文件夹配置: rawPath:%s", path)
 		return ""

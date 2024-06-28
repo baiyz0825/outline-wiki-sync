@@ -17,14 +17,14 @@ import (
 
 func init() {
 	InitializeDB()
-	err := _gen_test_db.AutoMigrate(&model.OutlineWikiCollectionMapping{})
+	err := db.AutoMigrate(&model.OutlineWikiCollectionMapping{})
 	if err != nil {
 		fmt.Printf("Error: AutoMigrate(&model.OutlineWikiCollectionMapping{}) fail: %s", err)
 	}
 }
 
 func Test_outlineWikiCollectionMappingQuery(t *testing.T) {
-	outlineWikiCollectionMapping := newOutlineWikiCollectionMapping(_gen_test_db)
+	outlineWikiCollectionMapping := newOutlineWikiCollectionMapping(db)
 	outlineWikiCollectionMapping = *outlineWikiCollectionMapping.As(outlineWikiCollectionMapping.TableName())
 	_do := outlineWikiCollectionMapping.WithContext(context.Background()).Debug()
 
@@ -126,7 +126,7 @@ func Test_outlineWikiCollectionMappingQuery(t *testing.T) {
 	}
 
 	var _a _another
-	var _aPK = field.NewString(_a.TableName(), "id")
+	var _aPK = field.NewString(_a.TableName(), clause.PrimaryKey)
 
 	err = _do.Join(&_a, primaryKey.EqCol(_aPK)).Scan(map[string]interface{}{})
 	if err != nil {
