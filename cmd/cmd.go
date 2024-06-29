@@ -32,7 +32,7 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	watchFilePath string
+	watchFilePath []string
 	sdkAuth       string
 	outlineHost   string
 	dbPath        string
@@ -44,7 +44,7 @@ var (
 
 func init() {
 	// init cmd params
-	rootCmd.PersistentFlags().StringVar(&watchFilePath, "watchFilePath", "", "outline服务host")
+	rootCmd.PersistentFlags().StringSliceVar(&watchFilePath, "watchFilePath", make([]string, 0), "outline服务host")
 	rootCmd.PersistentFlags().StringVar(&sdkAuth, "sdkAuth", "", "outline服务 api key")
 	rootCmd.PersistentFlags().StringVar(&outlineHost, "outlineHost", "", "要监视的文件路径")
 	defaultWorkDir, _ := os.Getwd()
@@ -70,17 +70,19 @@ func check() {
 		xlog.Log.Errorf("watchFilePath 不能为空")
 		os.Exit(1)
 	}
-	if info, err := os.Stat(watchFilePath); err != nil {
-		if os.IsNotExist(err) {
-			xlog.Log.Errorf("文件路径不存在: %s", watchFilePath)
-		} else {
-			xlog.Log.Errorf("文件路径无效: %s", watchFilePath)
-		}
-		os.Exit(1)
-	} else {
-		if !info.IsDir() {
-			xlog.Log.Errorf("文件路径不是目录: %s", watchFilePath)
+	for _, itemPath := range watchFilePath {
+		if info, err := os.Stat(itemPath); err != nil {
+			if os.IsNotExist(err) {
+				xlog.Log.Errorf("文件路径不存在: %s", watchFilePath)
+			} else {
+				xlog.Log.Errorf("文件路径无效: %s", watchFilePath)
+			}
 			os.Exit(1)
+		} else {
+			if !info.IsDir() {
+				xlog.Log.Errorf("文件路径不是目录: %s", watchFilePath)
+				os.Exit(1)
+			}
 		}
 	}
 }
@@ -129,8 +131,6 @@ func Execute(args []string) {
 
 func cmdMainFunc(ctx context.Context) {
 	xlog.Log.Infof("Start run ....")
-	fileRootPath := make([]string, 0)
-	fileRootPath = append(fileRootPath, watchFilePath)
 	// func
 	var mainWg sync.WaitGroup
 	// run sync markDown
@@ -138,7 +138,7 @@ func cmdMainFunc(ctx context.Context) {
 		mainWg.Add(1)
 		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
-			service.NewSyncMarkDownFile(ctx, fileRootPath).SyncMarkdownFile()
+			service.NewSyncMarkDownFile(ctx, watchFilePath).SyncMarkdownFile()
 		}(&mainWg)
 	}
 
@@ -150,7 +150,7 @@ func cmdMainFunc(ctx context.Context) {
 			var innerWatchWg sync.WaitGroup
 			// 实时监听
 			defer innerWatchWg.Wait()
-			for _, pathItem := range fileRootPath {
+			for _, pathItem := range watchFilePath {
 				innerWatchWg.Add(1)
 				go func(path string) {
 					defer innerWatchWg.Done()
